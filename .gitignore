@@ -210,3 +210,5 @@ __marimo__/
 data/annotations/
 data/cropped_persons/
 data/mpii/
+
+.DS_Store
