@@ -211,4 +211,7 @@ data/annotations/
 data/cropped_persons/
 data/mpii/
 
+# safetensors
+model_weights/
+
 .DS_Store
