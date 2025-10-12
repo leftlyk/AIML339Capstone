@@ -8,7 +8,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.abspath(os.path.join(current_dir, os.pardir))
 sys.path.append(parent_dir)
 
-from utils.losses import heatmap_mse_loss
+from utils.losses import heatmap_mse_loss, heatmap_mse_loss_per_joint
 from utils.heatmaps import heatmaps_to_coords
 from utils.pckh import compute_pckh
 from utils.visualisations import visualize_batch_predictions
@@ -20,6 +20,7 @@ from models.model import ViTPoseHeatmap
 def train_model(model, train_loader, val_loader, epochs=10, lr=1e-4, device='cuda', img_size=224):
     model = model.to(device)
     opt = torch.optim.AdamW(model.parameters(), lr=lr)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt, factor=0.5, patience=2, verbose=True)
 
     for epoch in range(epochs):
         # ---- Training ----
@@ -29,7 +30,7 @@ def train_model(model, train_loader, val_loader, epochs=10, lr=1e-4, device='cud
             hmaps = batch['heatmaps'].to(device)
 
             pred = model(imgs)  # (B, J, H, W)
-            loss = heatmap_mse_loss(pred, hmaps)
+            loss = heatmap_mse_loss_per_joint(pred, hmaps)
 
             opt.zero_grad()
             loss.backward()
@@ -49,7 +50,7 @@ def train_model(model, train_loader, val_loader, epochs=10, lr=1e-4, device='cud
                 pred = model(imgs)
 
                 # loss
-                val_loss += heatmap_mse_loss(pred, hmaps).item()
+                val_loss += heatmap_mse_loss_per_joint(pred, hmaps).item()
 
                 # decode coords
                 coords = heatmaps_to_coords(pred, img_size=img_size)
@@ -72,6 +73,8 @@ def train_model(model, train_loader, val_loader, epochs=10, lr=1e-4, device='cud
         val_loss /= len(val_loader)
         print(f"Epoch {epoch+1}, Val Loss: {val_loss:.4f}, PCKh@0.5: {pckh:.4f}")
 
+        scheduler.step(val_loss)
+
         # visualize some predictions
         visualize_batch_predictions(model, val_loader, device=device, img_size=img_size, n_samples=2)
 
@@ -81,7 +84,7 @@ cfg = SimpleNamespace(
     img_root="../data/cropped_persons/",
     batch_size=8,
     vit_name="vit_small_patch16_224",
-    lr=1e-3,
+    lr=5e-4,
     epochs=30
 )
 
