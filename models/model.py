@@ -34,14 +34,22 @@ def apply_lora_to_vit(model, r=4, lora_alpha=1.0):
                 )
 
 class ViTPoseHeatmap(nn.Module):
+    """
+    Custom head predicting 56x56 heatmaps
+
+    Args:
+        vit_name: timm ViT model
+        num_joints: number of joints to predict (16 for MPII)
+        hm_size: unused as size is implicit in the deconv
+    """
     def __init__(self, vit_name="vit_small_patch16_224", num_joints=16, hm_size=56):
         super().__init__()
         self.backbone = timm.create_model(vit_name, pretrained=True, features_only=True, out_indices=[-1])
         c = self.backbone.feature_info[-1]['num_chs']
         self.deconv = nn.Sequential(
-            nn.ConvTranspose2d(c, 256, 4, stride=2, padding=1),  # upsample
+            nn.ConvTranspose2d(c, 256, 4, stride=2, padding=1),  # upsample to 28x28
             nn.ReLU(),
-            nn.ConvTranspose2d(256, 256, 4, stride=2, padding=1),
+            nn.ConvTranspose2d(256, 256, 4, stride=2, padding=1), # upsample again to 56x56
             nn.ReLU(),
             nn.Conv2d(256, num_joints, kernel_size=1)
         )
@@ -53,6 +61,17 @@ class ViTPoseHeatmap(nn.Module):
 
 # LoRA-augmented ViT pose model
 class ViTPoseHeatmapLoRA(nn.Module):
+    """
+    Custom head predicting 56x56 heatmaps with
+    LoRA finetuning
+
+    Args:
+        vit_name: timm ViT model
+        num_joints: number of joints to predict (16 for MPII)
+        hm_size: unused as size is implicit in the deconv
+        lora_r: rank to use
+        lora_alpha: lora alpha value
+    """
     def __init__(self, vit_name="vit_small_patch16_224", num_joints=16, hm_size=56, lora_r=4, lora_alpha=1.0):
         super().__init__()
         self.backbone = timm.create_model(vit_name, pretrained=True, features_only=True, out_indices=[-1])
@@ -72,6 +91,15 @@ class ViTPoseHeatmapLoRA(nn.Module):
 
 
 class ViTPoseHeatmapBatchnorm(nn.Module):
+    """
+    Custom head predicting 56x56 heatmaps with
+    Batchnorm2d after ReLU non-linearity
+
+    Args:
+        vit_name: timm ViT model
+        num_joints: number of joints to predict (16 for MPII)
+        hm_size: unused as size is implicit in the deconv
+    """
     def __init__(self, vit_name="vit_small_patch16_224", num_joints=16, hm_size=56):
         super().__init__()
         self.backbone = timm.create_model(vit_name, pretrained=True, features_only=True, out_indices=[-1])
@@ -90,7 +118,15 @@ class ViTPoseHeatmapBatchnorm(nn.Module):
         feat = self.backbone(x)[-1]   # (B,C,H/16,W/16)
         return self.deconv(feat)      # (B,K,hm_size,hm_size)
 
+
 class ViTPoseRegression(torch.nn.Module):
+    """
+    Custom head regressing direct pose keypoints
+
+    Args:
+        vit_name: timm ViT model
+        num_joints: number of joints to predict (16 for MPII)
+    """
     def __init__(self, vit_name="vit_small_patch16_224", num_joints=16):
         super().__init__()
         self.backbone = timm.create_model(vit_name, pretrained=True, features_only=True, out_indices=[-1])

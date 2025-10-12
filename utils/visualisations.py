@@ -27,7 +27,6 @@ def visualize_joints_on_image(img, joints, joint_names):
 
 
 
-
 def visualize_joints_with_preds(img, joints_gt, joints_pred, joint_names):
     """
     img         : torch.Tensor (3,H,W) [0,1] or np.ndarray (H,W,3) uint8
@@ -79,7 +78,6 @@ def visualize_joints_with_preds(img, joints_gt, joints_pred, joint_names):
     plt.tight_layout()
     plt.show()
 
-    import matplotlib.pyplot as plt
 
 def plot_img_with_joints(img, pred_joints, gt_joints=None, title=None):
     """

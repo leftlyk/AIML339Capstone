@@ -17,9 +17,11 @@ from data.mpii_dataset import MPIIDataset
 from models.model import ViTPoseHeatmap
 
 
-def train_model(model, train_loader, val_loader, epochs=10, lr=1e-4, device='cuda', img_size=224):
+# train model for # epochs with given sets, learning rate, device and img size
+def train_model(model, train_loader, val_loader, epochs=10, lr=1e-3, device='cuda', img_size=224):
     model = model.to(device)
     opt = torch.optim.AdamW(model.parameters(), lr=lr)
+    # rate scheduler in place: see ViT-S-H-3
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt, factor=0.5, patience=2, verbose=True)
 
     for epoch in range(epochs):
