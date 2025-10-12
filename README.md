@@ -4,3 +4,9 @@ Capstone Project for AIML339 - ViT for STS test
 ## Data
 The ViT training data is sourced from the MPII Human Pose dataset:
 [MPII Dataset](https://www.mpi-inf.mpg.de/departments/computer-vision-and-machine-learning/software-and-datasets/mpii-human-pose-dataset/download)
+
+## Training
+The models discussed in the study were trained with the code in this repository, formatted into a Kaggle cloud compute system. Without a substantial gpu, it is not recommended to run train.py. Additionally, one would need to install the large tar.gz files from mpii to get the cropped persons, and annotations neccessary.
+
+## Sampling
+We provide a run_inference notebook with all the necessary tools to run inference on any of our 6 models saved in huggingface, where images in the sample_images directory can be put through the model. By default, the best model is run on the sample_images directory, but this can be changed by sourcing the link for the chosen model from the [HuggingFace](https://huggingface.co/shai-hulud/AIML339Capstone/tree/main) repository.

@@ -1,0 +1,240 @@
+[
+    {
+    "image": "000003072_person1.jpg",
+    "original_image": "000003072.jpg",
+    "person_index": 1,
+    "joints": [
+      {
+        "name": "rankl",
+        "x": 139.0,
+        "y": 446.0,
+        "visible": 1,
+        "mpii_id": 0
+      },
+      {
+        "name": "rknee",
+        "x": 135.0,
+        "y": 348.0,
+        "visible": 1,
+        "mpii_id": 1
+      },
+      {
+        "name": "rhip",
+        "x": 118.0,
+        "y": 263.0,
+        "visible": 1,
+        "mpii_id": 2
+      },
+      {
+        "name": "lhip",
+        "x": 171.0,
+        "y": 263.0,
+        "visible": 1,
+        "mpii_id": 3
+      },
+      {
+        "name": "lknee",
+        "x": 167.0,
+        "y": 351.0,
+        "visible": 1,
+        "mpii_id": 4
+      },
+      {
+        "name": "lankl",
+        "x": 169.0,
+        "y": 431.0,
+        "visible": 1,
+        "mpii_id": 5
+      },
+      {
+        "name": "pelvis",
+        "x": 145.0,
+        "y": 263.0,
+        "visible": 1,
+        "mpii_id": 6
+      },
+      {
+        "name": "thorax",
+        "x": 138.0,
+        "y": 124.0,
+        "visible": 1,
+        "mpii_id": 7
+      },
+      {
+        "name": "upper_neck",
+        "x": 140.02070000000003,
+        "y": 105.26230000000001,
+        "visible": 1,
+        "mpii_id": 8
+      },
+      {
+        "name": "head",
+        "x": 146.97929999999997,
+        "y": 40.73769999999999,
+        "visible": 1,
+        "mpii_id": 9
+      },
+      {
+        "name": "rwri",
+        "x": 40.0,
+        "y": 210.0,
+        "visible": 1,
+        "mpii_id": 10
+      },
+      {
+        "name": "relb",
+        "x": 85.0,
+        "y": 184.0,
+        "visible": 1,
+        "mpii_id": 11
+      },
+      {
+        "name": "rsho",
+        "x": 93.0,
+        "y": 125.0,
+        "visible": 1,
+        "mpii_id": 12
+      },
+      {
+        "name": "lsho",
+        "x": 183.0,
+        "y": 123.0,
+        "visible": 1,
+        "mpii_id": 13
+      },
+      {
+        "name": "lelb",
+        "x": 206.0,
+        "y": 188.0,
+        "visible": 1,
+        "mpii_id": 14
+      },
+      {
+        "name": "lwri",
+        "x": 251.0,
+        "y": 216.0,
+        "visible": 1,
+        "mpii_id": 15
+      }
+    ]
+  },
+  {
+    "image": "000003072_person2.jpg",
+    "original_image": "000003072.jpg",
+    "person_index": 2,
+    "joints": [
+      {
+        "name": "rankl",
+        "x": 83.0,
+        "y": 523.0,
+        "visible": 1,
+        "mpii_id": 0
+      },
+      {
+        "name": "rknee",
+        "x": 91.0,
+        "y": 382.0,
+        "visible": 1,
+        "mpii_id": 1
+      },
+      {
+        "name": "rhip",
+        "x": 93.0,
+        "y": 251.0,
+        "visible": 1,
+        "mpii_id": 2
+      },
+      {
+        "name": "lhip",
+        "x": 129.0,
+        "y": 254.0,
+        "visible": 1,
+        "mpii_id": 3
+      },
+      {
+        "name": "lknee",
+        "x": 133.0,
+        "y": 381.0,
+        "visible": 1,
+        "mpii_id": 4
+      },
+      {
+        "name": "lankl",
+        "x": 115.0,
+        "y": 496.0,
+        "visible": 1,
+        "mpii_id": 5
+      },
+      {
+        "name": "pelvis",
+        "x": 111.0,
+        "y": 253.0,
+        "visible": 1,
+        "mpii_id": 6
+      },
+      {
+        "name": "thorax",
+        "x": 107.0,
+        "y": 146.0,
+        "visible": 1,
+        "mpii_id": 7
+      },
+      {
+        "name": "upper_neck",
+        "x": 117.45659999999998,
+        "y": 119.4563,
+        "visible": 1,
+        "mpii_id": 8
+      },
+      {
+        "name": "head",
+        "x": 148.54340000000002,
+        "y": 40.5437,
+        "visible": 1,
+        "mpii_id": 9
+      },
+      {
+        "name": "rwri",
+        "x": 110.0,
+        "y": 219.0,
+        "visible": 1,
+        "mpii_id": 10
+      },
+      {
+        "name": "relb",
+        "x": 40.0,
+        "y": 219.0,
+        "visible": 1,
+        "mpii_id": 11
+      },
+      {
+        "name": "rsho",
+        "x": 62.0,
+        "y": 142.0,
+        "visible": 1,
+        "mpii_id": 12
+      },
+      {
+        "name": "lsho",
+        "x": 152.0,
+        "y": 150.0,
+        "visible": 1,
+        "mpii_id": 13
+      },
+      {
+        "name": "lelb",
+        "x": 147.0,
+        "y": 208.0,
+        "visible": 1,
+        "mpii_id": 14
+      },
+      {
+        "name": "lwri",
+        "x": 160.0,
+        "y": 235.0,
+        "visible": 1,
+        "mpii_id": 15
+      }
+    ]
+  }
+]

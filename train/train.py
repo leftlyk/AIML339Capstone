@@ -1,100 +1,111 @@
 # --- train.py (outline) ---
-import sys
-import torch
-import os
+import torch, timm, json, os, cv2
+from torch.utils.data import Dataset, DataLoader
 from types import SimpleNamespace
+import sys
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.abspath(os.path.join(current_dir, os.pardir))
 sys.path.append(parent_dir)
 
-from torch.utils.data import DataLoader
-from models.model import ViTPose
-from utils.losses import HeatmapMSELoss
+from utils.losses import heatmap_mse_loss, heatmap_mse_loss_per_joint
+from utils.heatmaps import heatmaps_to_coords
 from utils.pckh import compute_pckh
+from utils.visualisations import visualize_batch_predictions
+from utils.visualisations import visualize_batch_gt
 from data.mpii_dataset import MPIIDataset
-from torch.optim import AdamW
-from torch.cuda.amp import GradScaler, autocast
-import numpy as np
-
-def validate(model, val_loader, criterion, device='cuda'):
-    model.eval()
-    val_loss = 0.0
-    n_samples = 0
-    all_preds = []
-    all_targets = []
-    with torch.no_grad():
-        for batch in val_loader:
-            imgs = batch['image'].to(device, non_blocking=True)
-            target = batch['target'].to(device, non_blocking=True)
-            tw = batch['target_weight'].to(device, non_blocking=True)
-            pred = model(imgs)
-            loss = criterion(pred, target, tw)
-            val_loss += loss.item() * imgs.size(0)
-            n_samples += imgs.size(0)
-            all_preds.append(pred.cpu().numpy())
-            all_targets.append(target.cpu().numpy())
-    avg_loss = val_loss / n_samples
-    all_preds = np.concatenate(all_preds, axis=0)  # [N, num_joints, 2]
-    all_targets = np.concatenate(all_targets, axis=0)  # [N, num_joints, 2]
-    # If you have visibility masks, also concatenate them
-    # all_vis = np.concatenate(all_vis, axis=0)  # [N, num_joints]
-
-    pckh = compute_pckh(all_preds, all_targets, head_indices=(9, 8), thresh=0.5)
-    print(f"PCKh@0.5: {pckh:.4f}")
-    return avg_loss
+from models.model import ViTPoseHeatmap
 
 
-def train(cfg):
-    train_set = MPIIDataset(cfg.train_annot, cfg.img_root)
-    val_set   = MPIIDataset(cfg.val_annot, cfg.img_root)
-    train_loader = DataLoader(train_set, batch_size=cfg.bs, shuffle=True, num_workers=cfg.nw, pin_memory=True)
-    val_loader   = DataLoader(val_set, batch_size=cfg.bs, shuffle=False, num_workers=cfg.nw, pin_memory=True)
+# train model for # epochs with given sets, learning rate, device and img size
+def train_model(model, train_loader, val_loader, epochs=10, lr=1e-3, device='cuda', img_size=224):
+    model = model.to(device)
+    opt = torch.optim.AdamW(model.parameters(), lr=lr)
+    # rate scheduler in place: see ViT-S-H-3
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt, factor=0.5, patience=2, verbose=True)
 
-    model = ViTPose(vit_name=cfg.vit_name, num_joints=16).cuda()
-    criterion = HeatmapMSELoss(use_target_weight=True)
-    opt = AdamW(model.parameters(), lr=cfg.lr, weight_decay=cfg.wd)
-    scaler = GradScaler()
-
-    for epoch in range(cfg.epochs):
+    for epoch in range(epochs):
+        # ---- Training ----
         model.train()
         for batch in train_loader:
-            imgs = batch['image'].cuda(non_blocking=True)
-            target = batch['target'].cuda(non_blocking=True)
-            tw = batch['target_weight'].cuda(non_blocking=True)
+            imgs = batch['image'].to(device)
+            hmaps = batch['heatmaps'].to(device)
 
-            opt.zero_grad(set_to_none=True)
-            with autocast():
+            pred = model(imgs)  # (B, J, H, W)
+            loss = heatmap_mse_loss_per_joint(pred, hmaps)
+
+            opt.zero_grad()
+            loss.backward()
+            opt.step()
+
+        # ---- Validation ----
+        model.eval()
+        all_preds, all_targets, all_vis = [], [], []
+        val_loss = 0.0
+        with torch.no_grad():
+            for batch in val_loader:
+                imgs = batch['image'].to(device)
+                hmaps = batch['heatmaps'].to(device)
+                joints = batch['joints'].to(device)
+                vis = batch['visibility'].to(device)
+
                 pred = model(imgs)
-                loss = criterion(pred, target, tw)
 
-            scaler.scale(loss).backward()
-            scaler.unscale_(opt)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-            scaler.step(opt)
-            scaler.update()
+                # loss
+                val_loss += heatmap_mse_loss_per_joint(pred, hmaps).item()
 
-        val_loss = validate(model, val_loader, criterion)
-        print(f"Epoch {epoch+1}/{cfg.epochs} | Val Loss: {val_loss:.4f}")
+                # decode coords
+                coords = heatmaps_to_coords(pred, img_size=img_size)
 
-        # Save best model
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
-            torch.save(model.state_dict(), f"{cfg.model_path}/best_model.pth")
-            print("Best model saved.")
+                all_preds.append(coords * img_size)   # back to pixel space
+                all_targets.append(joints * img_size)
+                all_vis.append(vis)
 
+        # aggregate
+        all_preds_t = torch.cat(all_preds, dim=0)
+        all_targets_t = torch.cat(all_targets, dim=0)
+        all_vis_t = torch.cat(all_vis, dim=0)
 
-cfg = SimpleNamespace(**{
-    "train_annot": "data/annotations/train_annotations.json",
-    "val_annot": "data/annotations/val_annotations.json",
-    "img_root": "data/cropped_persons/",
-    "model_path": "model_weights",
-    "nw": 1,
-    "bs": 16,
-    "vit_name": "vit_base_patch16_224",
-    "lr": 0.001,
-    "wd": 0.01,
-    "epochs": 50,
-})
+        # compute PCKh
+        all_preds_np = all_preds_t.cpu().numpy()
+        all_targets_np = all_targets_t.cpu().numpy()
+        all_vis_np = all_vis_t.cpu().numpy()
+        pckh = compute_pckh(all_preds_np, all_targets_np, all_vis_np)
 
-train(cfg)
+        val_loss /= len(val_loader)
+        print(f"Epoch {epoch+1}, Val Loss: {val_loss:.4f}, PCKh@0.5: {pckh:.4f}")
+
+        scheduler.step(val_loss)
+
+        # visualize some predictions
+        visualize_batch_predictions(model, val_loader, device=device, img_size=img_size, n_samples=2)
+
+cfg = SimpleNamespace(
+    train_annot="../data/annotations/train_annotations_full.json",
+    val_annot="../data/annotations/val_annotations_full.json",
+    img_root="../data/cropped_persons/",
+    batch_size=8,
+    vit_name="vit_small_patch16_224",
+    lr=5e-4,
+    epochs=30
+)
+
+train_dataset = MPIIDataset(cfg.train_annot, cfg.img_root)
+val_dataset = MPIIDataset(cfg.val_annot, cfg.img_root)
+train_loader = DataLoader(train_dataset, batch_size=cfg.batch_size, shuffle=True, num_workers=1)
+val_loader = DataLoader(val_dataset, batch_size=cfg.batch_size, shuffle=False, num_workers=1)
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+model = ViTPoseHeatmap(vit_name=cfg.vit_name)
+
+# Use DataParallel if >1 GPU available
+if torch.cuda.device_count() > 1:
+    print(f"Using {torch.cuda.device_count()} GPUs!")
+    model = torch.nn.DataParallel(model)
+
+model = model.to(device)
+
+visualize_batch_gt(model, val_loader, device='cpu', img_size=224, n_samples=2)
+
+train_model(model, train_loader, val_loader, epochs=cfg.epochs, lr=cfg.lr)

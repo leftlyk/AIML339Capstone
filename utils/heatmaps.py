@@ -1,39 +1,46 @@
 # --- utils/heatmaps.py ---
 import numpy as np
-import cv2
+import torch
 
-def generate_target_heatmaps(joints, joints_vis, heatmap_size, image_size, sigma=2):
-    # joints: (K, 2) in input image coords; returns (K, Hh, Wh)
+
+def generate_heatmaps(joints, visibility, out_size=56, sigma=2):
+    """
+    joints: (K, 2) normalized coords [0,1]
+    visibility: (K,) 0/1
+    out_size: heatmap resolution (H=W)
+    sigma: Gaussian spread
+    """
     K = joints.shape[0]
-    target = np.zeros((K, heatmap_size[1], heatmap_size[0]), dtype=np.float32)
-    tmp_size = sigma * 3
+    heatmaps = np.zeros((K, out_size, out_size), dtype=np.float32)
 
-    feat_stride = np.array(image_size) / np.array(heatmap_size)
-    for k in range(K):
-        if joints_vis[k] <= 0: 
+    for j in range(K):
+        if visibility[j] == 0:
             continue
-        mu_x = int(joints[k][0] / feat_stride[0] + 0.5)
-        mu_y = int(joints[k][1] / feat_stride[1] + 0.5)
-        ul = [int(mu_x - tmp_size), int(mu_y - tmp_size)]
-        br = [int(mu_x + tmp_size + 1), int(mu_y + tmp_size + 1)]
-
-        if ul[0] >= heatmap_size[0] or ul[1] >= heatmap_size[1] or br[0] < 0 or br[1] < 0:
+        x = int(joints[j,0] * out_size)
+        y = int(joints[j,1] * out_size)
+        if x < 0 or y < 0 or x >= out_size or y >= out_size:
             continue
+        xx, yy = np.meshgrid(np.arange(out_size), np.arange(out_size))
+        heatmaps[j] = np.exp(-((xx-x)**2 + (yy-y)**2) / (2*sigma**2))
+    return heatmaps
 
-        size = 2 * tmp_size + 1
-        x = np.arange(0, size, 1, float)
-        y = x[:, np.newaxis]
-        x0 = y0 = size // 2
-        g = np.exp(-((x - x0)**2 + (y - y0)**2) / (2 * sigma**2))
 
-        g_x = max(0, -ul[0]), min(br[0], heatmap_size[0]) - ul[0]
-        g_y = max(0, -ul[1]), min(br[1], heatmap_size[1]) - ul[1]
+def heatmaps_to_coords(heatmaps):
+    """
+    heatmaps: (B, num_joints, H, W)
+    returns: (B, num_joints, 2) in [0,1] normalized coords
+    """
+    B, J, H, W = heatmaps.shape
+    heatmaps_reshaped = heatmaps.view(B, J, -1)
+    idx = heatmaps_reshaped.argmax(dim=2)  # (B, J)
 
-        img_x = max(0, ul[0]), min(br[0], heatmap_size[0])
-        img_y = max(0, ul[1]), min(br[1], heatmap_size[1])
+    # Convert flat indices → 2D coords
+    y = (idx // W).float()
+    x = (idx % W).float()
 
-        target[k, img_y[0]:img_y[1], img_x[0]:img_x[1]] = np.maximum(
-            target[k, img_y[0]:img_y[1], img_x[0]:img_x[1]],
-            g[g_y[0]:g_y[1], g_x[0]:g_x[1]]
-        )
-    return target
+    coords = torch.stack([x, y], dim=2)  # (B, J, 2)
+    coords[..., 0] /= W  # normalize to [0,1]
+    coords[..., 1] /= H
+
+    return coords
+
